@@ -7,21 +7,38 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const scriptDir = dirname(fileURLToPath(import.meta.url));
-const messagePath = join(scriptDir, "message.txt");
+const MAX_CHARS = 200;
 
-const line = readFileSync(messagePath, "utf8").trim();
-if (line.length < 1 || line.length > 200) {
-  throw new Error(`entry must be 1-200 characters, got ${line.length}`);
-}
-if (line.includes("\n") || line.includes("\r")) {
-  throw new Error("entry must be a single line");
+function loadMessage(): string {
+  const scriptDir = dirname(fileURLToPath(import.meta.url));
+  const messagePath = join(scriptDir, "message.txt");
+  return readFileSync(messagePath, "utf8").trim();
 }
 
-const outDir = process.env.MAKEFUN_OUTPUT_DIR;
-if (!outDir) {
-  throw new Error("MAKEFUN_OUTPUT_DIR is not set");
+function validateLine(line: string): void {
+  if (line.length < 1 || line.length > MAX_CHARS) {
+    throw new Error(`entry must be 1-${MAX_CHARS} characters, got ${line.length}`);
+  }
+  if (/\r|\n/.test(line)) {
+    throw new Error("entry must be a single line");
+  }
 }
-mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, "entry.txt"), line, "utf8");
-console.log(`wrote entry.txt (${line.length} chars)`);
+
+function resolveOutputDir(): string {
+  const outDir = process.env.MAKEFUN_OUTPUT_DIR;
+  if (!outDir) {
+    throw new Error("MAKEFUN_OUTPUT_DIR is not set");
+  }
+  return outDir;
+}
+
+function main(): void {
+  const line = loadMessage();
+  validateLine(line);
+  const outDir = resolveOutputDir();
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(join(outDir, "entry.txt"), line, "utf8");
+  console.log(`wrote entry.txt (${line.length} chars)`);
+}
+
+main();
